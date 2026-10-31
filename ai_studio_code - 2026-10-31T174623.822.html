@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Studio Image – Portrétny Generátor & Developer API</title>
+    <style>
+        :root {
+            --bg-black: #040406;
+            --panel-black: #0c0c12;
+            --chat-bubble-ai: #12121b;
+            --chat-bubble-user: #1a1a27;
+            --rainbow: linear-gradient(135deg, #ff0055, #ff5500, #ffcc00, #00ffcc, #0099ff, #7a00ff, #ff00aa);
+            --rainbow-anim: linear-gradient(90deg, #ff0055, #ffaa00, #00ffcc, #0088ff, #cc00ff, #ff0055);
+            --neon-glow: 0 0 25px rgba(255, 0, 128, 0.45), 0 0 45px rgba(0, 204, 255, 0.35);
+            --text-main: #f0f0f5;
+            --text-dim: #8b8b9e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-black);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* Vrchná lišta */
+        .top-navbar {
+            width: 100%;
+            background: rgba(12, 12, 18, 0.95);
+            backdrop-filter: blur(14px);
+            border-bottom: 1px solid #1f1f2e;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.15rem;
+            font-weight: 800;
+            background: var(--rainbow);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .device-pills {
+            display: flex;
+            gap: 6px;
+            background: #14141e;
+            padding: 4px;
+            border-radius: 30px;
+            border: 1px solid #262638;
+        }
+
+        .device-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 6px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .device-btn.active {
+            background: var(--rainbow);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255, 0, 128, 0.5);
+        }
+
+        .nav-right-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .db-menu-btn {
+            background: #181826;
+            border: 1px solid #32324a;
+            color: #fff;
+            padding: 7px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.3s;
+        }
+
+        .db-menu-btn:hover {
+            border-color: #ff0080;
+            box-shadow: 0 0 12px rgba(255, 0, 128, 0.4);
+        }
+
+        .api-menu-btn {
+            background: #141424;
+            border: 1px solid #00f0ff;
+            color: #00f0ff;
+            padding: 7px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.3s;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+        }
+
+        .api-menu-btn:hover {
+            background: #00f0ff;
+            color: #000;
+            box-shadow: 0 0 18px rgba(0, 240, 255, 0.6);
+        }
+
+        /* Pracovná plocha a rámy zariadení */
+        .workspace {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            transition: all 0.4s ease;
+        }
+
+        .device-frame {
+            background: var(--panel-black);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        .device-frame::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            z-index: -1;
+            background: var(--rainbow-anim);
+            background-size: 300% 300%;
+            border-radius: inherit;
+            animation: rainbowFlow 8s linear infinite;
+        }
+
+        @keyframes rainbowFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .frame-pc {
+            width: 100%;
+            max-width: 1100px;
+            height: calc(100vh - 95px);
+            border-radius: 22px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.95), var(--neon-glow);
+        }
+
+        .frame-tablet {
+            width: 768px;
+            height: 940px;
+            max-height: calc(100vh - 95px);
+            border-radius: 36px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.95), var(--neon-glow);
+        }
+
+        .frame-mobile {
+            width: 390px;
+            height: 800px;
+            max-height: calc(100vh - 95px);
+            border-radius: 46px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.95), var(--neon-glow);
+        }
+
+        .mobile-notch {
+            display: none;
+            width: 120px;
+            height: 25px;
+            background: #000;
+            border-radius: 0 0 16px 16px;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 50;
+        }
+
+        .frame-mobile .mobile-notch {
+            display: block;
+        }
+
+        /* Chat */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            background: #08080d;
+            border-bottom: 1px solid #1a1a26;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-header .title {
+            font-weight: 700;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background: #00ffcc;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00ffcc;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #222233;
+            border-radius: 10px;
+        }
+
+        .message-row {
+            display: flex;
+            gap: 12px;
+            max-width: 90%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-row.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .message-row.ai {
+            align-self: flex-start;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+            background: #181826;
+            border: 1px solid #2e2e42;
+        }
+
+        .message-row.ai .avatar {
+            background: var(--rainbow);
+            box-shadow: 0 0 12px rgba(255, 0, 128, 0.4);
+        }
+
+        .bubble {
+            padding: 14px 18px;
+            border-radius: 18px;
+            font-size: 0.92rem;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .message-row.user .bubble {
+            background: var(--chat-bubble-user);
+            color: #fff;
+            border-bottom-right-radius: 4px;
+            border: 1px solid #2d2d3f;
+        }
+
+        .message-row.ai .bubble {
+            background: var(--chat-bubble-ai);
+            color: var(--text-main);
+            border-bottom-left-radius: 4px;
+            border: 1px solid #1f1f2e;
+        }
+
+        .uploaded-previews-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .uploaded-thumb {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 2px solid #00ffcc;
+        }
+
+        /* ChatGPT-style box */
+        .chatgpt-gen-box {
+            background: #08080c;
+            border: 1px solid #252538;
+            border-radius: 16px;
+            margin-top: 12px;
+            width: 100%;
+            max-width: 500px;
+            overflow: hidden;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.7);
+        }
+
+        .gen-top-banner {
+            padding: 12px 16px;
+            background: #11111a;
+            border-bottom: 1px solid #1e1e2d;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .gen-status-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.4px;
+            color: #fff;
+        }
+
+        .spinner-pulse {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ff00aa;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .gen-percentage {
+            font-size: 0.85rem;
+            font-weight: 800;
+            background: var(--rainbow);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .gen-preview-area {
+            position: relative;
+            width: 100%;
+            min-height: 280px;
+            background: #0d0d15;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .shimmer-placeholder {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, #0d0d15 0%, #1a1a27 50%, #0d0d15 100%);
+            background-size: 200% 100%;
+            animation: shimmerMove 1.8s infinite;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        @keyframes shimmerMove {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        .gen-result-image {
+            width: 100%;
+            height: auto;
+            display: none;
+            border-bottom: 1px solid #1f1f2e;
+        }
+
+        .gen-progress-bar-wrapper {
+            height: 6px;
+            background: #151520;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .gen-progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--rainbow-anim);
+            background-size: 200% 100%;
+            animation: rainbowFlow 2s linear infinite;
+            transition: width 0.15s ease;
+        }
+
+        .gen-footer-actions {
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0d0d15;
+        }
+
+        .gen-phase-text {
+            font-size: 0.8rem;
+            color: #8c8ca1;
+        }
+
+        .download-btn {
+            display: none;
+            padding: 8px 18px;
+            background: var(--rainbow);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: none;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.4);
+            transition: transform 0.2s;
+        }
+
+        .download-btn:hover {
+            transform: scale(1.04);
+        }
+
+        /* Spodná lišta chatu */
+        .chat-input-bar {
+            padding: 14px 20px;
+            background: #08080d;
+            border-top: 1px solid #1c1c2a;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .customization-tags {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+
+        .customization-tags::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tag-select {
+            background: #14141e;
+            border: 1px solid #28283a;
+            color: #cfcfe0;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .tag-select:focus {
+            border-color: #ff00aa;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #12121b;
+            padding: 8px 14px;
+            border-radius: 28px;
+            border: 1px solid #28283a;
+            transition: border-color 0.3s;
+        }
+
+        .input-row:focus-within {
+            border-color: #ff00aa;
+            box-shadow: 0 0 15px rgba(255, 0, 170, 0.25);
+        }
+
+        .upload-icon-btn {
+            background: #1c1c2b;
+            border: 1px solid #33334d;
+            color: #fff;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.2s;
+            position: relative;
+        }
+
+        .upload-icon-btn:hover {
+            background: #25253a;
+            transform: scale(1.05);
+        }
+
+        .badge-count {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ff0055;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 800;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+        }
+
+        .chat-input::placeholder {
+            color: #55556a;
+        }
+
+        .send-btn {
+            background: var(--rainbow);
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #fff;
+            transition: 0.2s;
+            box-shadow: 0 0 12px rgba(255, 0, 128, 0.4);
+        }
+
+        .send-btn:hover {
+            transform: scale(1.08);
+        }
+
+        /* Modály (Galéria a API Konzola) */
+        .db-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .db-modal.open {
+            display: flex;
+        }
+
+        .db-content {
+            background: #0e0e16;
+            border: 1px solid #28283d;
+            width: 100%;
+            max-width: 650px;
+            border-radius: 20px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9), var(--neon-glow);
+        }
+
+        .api-modal-content {
+            max-width: 850px;
+            height: 85vh;
+        }
+
+        .db-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #1f1f2e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .db-header h3 {
+            font-size: 1.15rem;
+            background: var(--rainbow);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+        }
+
+        .db-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* Galéria mriežka */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 14px;
+        }
+
+        .db-item {
+            background: #151522;
+            border-radius: 12px;
+            padding: 8px;
+            position: relative;
+            border: 1px solid #252538;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .db-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+
+        .delete-single-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: rgba(255, 0, 85, 0.85);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .db-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #1f1f2e;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .btn-clear-all {
+            background: #2b111a;
+            border: 1px solid #ff0055;
+            color: #ff4d88;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-close {
+            background: #202030;
+            border: none;
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        /* -------------------------------------------------------------
+           MODERNÁ VÝVOJÁRSKA STRÁNKA PRE API KĽÚČE & BILLING
+        -------------------------------------------------------------- */
+        .api-dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .billing-cards-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+        }
+
+        .metric-card {
+            background: #12121e;
+            border: 1px solid #24243a;
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-card .label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-card .val {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .metric-card .sub {
+            font-size: 0.75rem;
+            color: #00ffaa;
+        }
+
+        .api-creator-box {
+            background: #131322;
+            border: 1px solid #2d2d46;
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .api-creator-box h4 {
+            font-size: 0.95rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .api-form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        @media (max-width: 700px) {
+            .api-form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .api-input {
+            background: #090910;
+            border: 1px solid #2b2b40;
+            color: #fff;
+            padding: 9px 12px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .api-input:focus {
+            border-color: #00f0ff;
+        }
+
+        .btn-gen-key {
+            background: var(--rainbow);
+            color: #fff;
+            border: none;
+            padding: 9px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 0, 128, 0.4);
+            white-space: nowrap;
+            transition: 0.2s;
+        }
+
+        .btn-gen-key:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 0, 128, 0.6);
+        }
+
+        .api-keys-list-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 10px;
+        }
+
+        .key-row-card {
+            background: #11111c;
+            border: 1px solid #202033;
+            border-radius: 12px;
+            padding: 14px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: 0.2s;
+        }
+
+        .key-row-card:hover {
+            border-color: #353554;
+            background: #141422;
+        }
+
+        .key-main-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .key-name-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: #fff;
+        }
+
+        .key-string-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #090910;
+            border: 1px solid #232338;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #00ffcc;
+        }
+
+        .copy-key-btn {
+            background: #1c1c2e;
+            border: 1px solid #363654;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: 0.2s;
+        }
+
+        .copy-key-btn:hover {
+            background: #00ffcc;
+            color: #000;
+        }
+
+        .key-metrics-pill {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            flex-wrap: wrap;
+        }
+
+        .key-limit-progress {
+            width: 100px;
+            height: 6px;
+            background: #252538;
+            border-radius: 6px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+
+        .key-limit-fill {
+            height: 100%;
+            background: var(--rainbow);
+            width: 15%;
+        }
+
+        .delete-key-btn {
+            background: #29121a;
+            border: 1px solid #ff0055;
+            color: #ff4d88;
+            padding: 5px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: 0.2s;
+        }
+
+        .delete-key-btn:hover {
+            background: #ff0055;
+            color: #fff;
+        }
+
+        .code-snippet-box {
+            background: #08080f;
+            border: 1px solid #202035;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-family: monospace;
+            font-size: 0.78rem;
+            color: #a0a0c0;
+            overflow-x: auto;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Vrchná lišta zariadení & developer zložky -->
+    <div class="top-navbar">
+        <div class="logo">
+            <span>✨</span> AI STUDIO IMAGE
+        </div>
+
+        <div class="device-pills">
+            <button class="device-btn" onclick="setDevice('mobile')">📱 Mobil</button>
+            <button class="device-btn" onclick="setDevice('tablet')">📟 Tablet</button>
+            <button class="device-btn active" onclick="setDevice('pc')">💻 PC</button>
+        </div>
+
+        <div class="nav-right-actions">
+            <!-- Tlačidlo pre API Kľúče & Billing -->
+            <button class="api-menu-btn" onclick="openAPIModal()">
+                🔑 API Kľúče & Billing
+            </button>
+            
+            <!-- Tlačidlo pre Galériu -->
+            <button class="db-menu-btn" onclick="openDBModal()">
+                💾 Galéria
+            </button>
+        </div>
+    </div>
+
+    <!-- Pracovné okno -->
+    <div class="workspace">
+        <div id="deviceFrame" class="device-frame frame-pc">
+            <div class="mobile-notch"></div>
+
+            <div class="chat-container">
+                <div class="chat-header">
+                    <div class="title">
+                        <div class="status-dot"></div>
+                        <span>AI Studio Image Assistent</span>
+                    </div>
+                    <small style="color: var(--text-dim); font-size: 0.75rem;">Multi-Image Collage Engine 4.0</small>
+                </div>
+
+                <!-- Chat správy -->
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message-row ai">
+                        <div class="avatar">✨</div>
+                        <div class="bubble">
+                            Ahoj! Som <b>AI Studio Image</b> 🎨.<br>
+                            Nahraj mi cez 📎 <b>koľkokoľvek obrázkov v rôznych formátoch</b>. Žiadne orezávanie do profilov! Zachovám ich prirodzený tvar, vytvorím elegantnú kompozíciu na vybranej tapete, pridám emoji a do ľavého dolného rohu umiestnim <b>AI korunku 👑</b>.<br><br>
+                            🚀 <i>Novo:</i> V hornom rohu môžeš otvoriť <b>API Kľúče & Billing</b> a generovať neobmedzene reálne kľúče s limitmi a billingom pre svoje vlastné aplikácie!
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vstupná lišta -->
+                <div class="chat-input-bar">
+                    <div class="customization-tags">
+                        <span style="font-size: 0.75rem; color: var(--text-dim);">Tapeta:</span>
+                        <select id="bgSelect" class="tag-select">
+                            <option value="classic-black">⬛ Classic Čierna (AMOLED)</option>
+                            <option value="classic-white">⬜ Classic Biela (Studio)</option>
+                            <option value="black-white">☯️ Čierno-Biela (Dual Tone)</option>
+                            <option value="cyber-rainbow">🌈 Dúhový Cyberpunk</option>
+                        </select>
+
+                        <span style="font-size: 0.75rem; color: var(--text-dim); margin-left: 8px;">Emoji:</span>
+                        <select id="emojiSelect" class="tag-select">
+                            <option value="magic">✨ 🦄 💫 🌈</option>
+                            <option value="love">💖 👑 🔥 💎</option>
+                            <option value="party">🥳 🎉 ⚡ 🚀</option>
+                            <option value="cool">😎 🌟 🦋 🪐</option>
+                        </select>
+                    </div>
+
+                    <div class="input-row">
+                        <label for="file-input" class="upload-icon-btn" title="Nahraj fotky v rôznych formátoch">
+                            📎
+                            <span class="badge-count" id="uploadBadge">0</span>
+                        </label>
+                        <input type="file" id="file-input" accept="image/*" multiple>
+
+                        <input type="text" id="promptInput" class="chat-input" placeholder="Zadaj inštrukciu alebo odošli fotky..." />
+
+                        <button class="send-btn" id="sendBtn" onclick="handleSend()">
+                            ➤
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODÁL: Galéria IndexedDB -->
+    <div class="db-modal" id="dbModal">
+        <div class="db-content">
+            <div class="db-header">
+                <h3>Uložené portréty (IndexedDB)</h3>
+                <button class="btn-close" onclick="closeDBModal()">✕</button>
+            </div>
+            <div class="db-body">
+                <div class="gallery-grid" id="dbItemsContainer"></div>
+            </div>
+            <div class="db-footer">
+                <button class="btn-clear-all" onclick="clearAllData()">🗑️ Vymazať celú galériu</button>
+                <button class="btn-close" onclick="closeDBModal()">Zavrieť</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODÁL: VÝVOJÁRSKA ZLOŽKA - API KĽÚČE & BILLING DASHBOARD -->
+    <div class="db-modal" id="apiModal">
+        <div class="db-content api-modal-content">
+            <div class="db-header">
+                <h3>🔑 AI Studio Developer Platform & API Keys</h3>
+                <button class="btn-close" onclick="closeAPIModal()">✕</button>
+            </div>
+            <div class="db-body">
+                <div class="api-dashboard">
+                    <!-- Billing & Quota prehľadové karty -->
+                    <div class="billing-cards-row">
+                        <div class="metric-card">
+                            <span class="label">Mesačný Billing & Náklady</span>
+                            <span class="val" id="totalBillingVal">$0.00</span>
+                            <span class="sub">Rozpočet: $250.00 Max</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="label">Aktívne API Kľúče</span>
+                            <span class="val" id="totalKeysCount">0</span>
+                            <span class="sub">Neobmedzené generovanie</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="label">Vygenerované portréty</span>
+                            <span class="val" id="totalApiCalls">0 req</span>
+                            <span class="sub">Model: Multi-Image Engine 4.0</span>
+                        </div>
+                    </div>
+
+                    <!-- Formulár na vytvorenie nového API kľúča -->
+                    <div class="api-creator-box">
+                        <h4><span>➕</span> Vytvoriť nový reálny API Kľúč s limitmi</h4>
+                        <div class="api-form-row">
+                            <input type="text" id="newKeyName" class="api-input" placeholder="Názov (napr. Produkcia - Web App)" />
+                            
+                            <select id="newKeyRateLimit" class="api-input">
+                                <option value="100 req / deň">100 req / deň</option>
+                                <option value="1 000 req / deň" selected>1 000 req / deň</option>
+                                <option value="10 000 req / deň">10 000 req / deň</option>
+                                <option value="Neobmedzene">Neobmedzene (Enterprise)</option>
+                            </select>
+
+                            <select id="newKeyBillingCap" class="api-input">
+                                <option value="$10 / mesiac">$10 Limit</option>
+                                <option value="$50 / mesiac" selected>$50 Limit</option>
+                                <option value="$250 / mesiac">$250 Limit</option>
+                                <option value="Bez limitu">Bez limitu</option>
+                            </select>
+
+                            <button class="btn-gen-key" onclick="handleGenerateKey()">
+                                ✨ Vygenerovať kľúč
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Zoznam vytvorených API kľúčov -->
+                    <div class="api-keys-list-title">
+                        <span>Zoznam aktívnych API kľúčov</span>
+                        <small style="color:var(--text-dim); font-size:0.75rem;">Uložené bezpečne v IndexedDB</small>
+                    </div>
+
+                    <div id="apiKeysContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Sem sa dynamicky generujú kľúče -->
+                    </div>
+
+                    <!-- Reálny cURL / Fetch príklad pre vývojárov -->
+                    <div style="margin-top: 10px;">
+                        <span style="font-size: 0.8rem; font-weight:700; color: #fff;">Ako použiť kľúč v reálnej aplikácii (JavaScript fetch):</span>
+                        <div class="code-snippet-box">
+<span style="color: #ff00aa;">const</span> response = <span style="color: #ff00aa;">await</span> fetch(<span style="color: #00ffcc;">"https://api.aistudioimage.internal/v1/portraits"</span>, {<br>
+&nbsp;&nbsp;method: <span style="color: #00ffcc;">"POST"</span>,<br>
+&nbsp;&nbsp;headers: {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #00ffcc;">"Authorization"</span>: <span style="color: #ffcc00;">"Bearer sk_live_YOUR_API_KEY"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #00ffcc;">"Content-Type"</span>: <span style="color: #00ffcc;">"application/json"</span><br>
+&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;body: JSON.stringify({ images: [<span style="color: #00ffcc;">"data:image/png;base64,..."</span>], wallpaper: <span style="color: #00ffcc;">"classic-black"</span> })<br>
+});
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="db-footer">
+                <button class="btn-clear-all" onclick="clearAllApiKeys()">🗑️ Zmazať všetky kľúče</button>
+                <button class="btn-close" onclick="closeAPIModal()">Zavrieť</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skrytý Canvas na kompozíciu (1200x1200px) -->
+    <canvas id="renderCanvas" width="1200" height="1200" style="display: none;"></canvas>
+
+    <script>
+        /* -------------------------------------------------------------
+           1. INDEXEDDB PRE PORTRÉTY A API KĽÚČE
+        -------------------------------------------------------------- */
+        const DB_NAME = 'AIStudioImageDB';
+        const DB_VERSION = 2; // Inkrementovaná verzia kvôli podpore API store
+        const STORE_PORTRAITS = 'portraits';
+        const STORE_KEYS = 'api_keys';
+        let db;
+
+        function initIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const dbInstance = e.target.result;
+                    if (!dbInstance.objectStoreNames.contains(STORE_PORTRAITS)) {
+                        dbInstance.createObjectStore(STORE_PORTRAITS, { keyPath: 'id', autoIncrement: true });
+                    }
+                    if (!dbInstance.objectStoreNames.contains(STORE_KEYS)) {
+                        dbInstance.createObjectStore(STORE_KEYS, { keyPath: 'id', autoIncrement: true });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        /* Ukladanie portrétov */
+        async function savePortraitToDB(dataUrl, promptText, count) {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PORTRAITS, 'readwrite');
+                const store = tx.objectStore(STORE_PORTRAITS);
+                const req = store.add({
+                    image: dataUrl,
+                    prompt: promptText,
+                    count: count,
+                    date: new Date().toLocaleString('sk-SK')
+                });
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function getAllPortraitsFromDB() {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PORTRAITS, 'readonly');
+                const store = tx.objectStore(STORE_PORTRAITS);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function deletePortraitFromDB(id) {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PORTRAITS, 'readwrite');
+                const store = tx.objectStore(STORE_PORTRAITS);
+                const req = store.delete(id);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function clearAllFromDB() {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PORTRAITS, 'readwrite');
+                const store = tx.objectStore(STORE_PORTRAITS);
+                const req = store.clear();
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        /* -------------------------------------------------------------
+           API KĽÚČE & BILLING STORE V INDEXEDDB
+        -------------------------------------------------------------- */
+        async function saveApiKeyToDB(keyObj) {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_KEYS, 'readwrite');
+                const store = tx.objectStore(STORE_KEYS);
+                const req = store.add(keyObj);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function getAllApiKeysFromDB() {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_KEYS, 'readonly');
+                const store = tx.objectStore(STORE_KEYS);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function deleteApiKeyFromDB(id) {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_KEYS, 'readwrite');
+                const store = tx.objectStore(STORE_KEYS);
+                const req = store.delete(id);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function clearAllApiKeysFromDB() {
+            if (!db) await initIndexedDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_KEYS, 'readwrite');
+                const store = tx.objectStore(STORE_KEYS);
+                const req = store.clear();
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        /* -------------------------------------------------------------
+           2. PREPÍNAČ RÁMOV (Mobil, Tablet, PC)
+        -------------------------------------------------------------- */
+        function setDevice(device) {
+            const frame = document.getElementById('deviceFrame');
+            const btns = document.querySelectorAll('.device-btn');
+            btns.forEach(b => b.classList.remove('active'));
+            frame.classList.remove('frame-mobile', 'frame-tablet', 'frame-pc');
+
+            if (device === 'mobile') {
+                frame.classList.add('frame-mobile');
+                btns[0].classList.add('active');
+            } else if (device === 'tablet') {
+                frame.classList.add('frame-tablet');
+                btns[1].classList.add('active');
+            } else {
+                frame.classList.add('frame-pc');
+                btns[2].classList.add('active');
+            }
+        }
+
+        /* -------------------------------------------------------------
+           3. NAHRÁVANIE OBRÁZKOV
+        -------------------------------------------------------------- */
+        let uploadedFiles = [];
+        const fileInput = document.getElementById('file-input');
+        const uploadBadge = document.getElementById('uploadBadge');
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                uploadedFiles = uploadedFiles.concat(files);
+                uploadBadge.style.display = 'flex';
+                uploadBadge.innerText = uploadedFiles.length;
+            }
+        });
+
+        /* -------------------------------------------------------------
+           4. CHAT A CHATGPT GENEROVACIE OKNO
+        -------------------------------------------------------------- */
+        const chatMessages = document.getElementById('chatMessages');
+        const promptInput = document.getElementById('promptInput');
+
+        promptInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSend();
+        });
+
+        async function handleSend() {
+            const text = promptInput.value.trim();
+            if (uploadedFiles.length === 0 && text === '') return;
+
+            const currentFiles = [...uploadedFiles];
+            uploadedFiles = [];
+            uploadBadge.style.display = 'none';
+            uploadBadge.innerText = '0';
+            fileInput.value = '';
+            promptInput.value = '';
+
+            const userMsg = document.createElement('div');
+            userMsg.className = 'message-row user';
+
+            let previewHtml = '';
+            if (currentFiles.length > 0) {
+                previewHtml = '<div class="uploaded-previews-grid">';
+                for (let f of currentFiles) {
+                    previewHtml += `<img src="${URL.createObjectURL(f)}" class="uploaded-thumb" alt="Upload" />`;
+                }
+                previewHtml += '</div>';
+            }
+
+            userMsg.innerHTML = `
+                <div class="avatar">👤</div>
+                <div class="bubble">
+                    ${text ? `<div>${text}</div>` : ''}
+                    ${previewHtml}
+                    <small style="display:block; margin-top:4px; color:#888; font-size:0.75rem;">
+                        ${currentFiles.length} fotografií v originálnych formátoch
+                    </small>
+                </div>
+            `;
+            chatMessages.appendChild(userMsg);
+            scrollToBottom();
+
+            const aiMsg = document.createElement('div');
+            aiMsg.className = 'message-row ai';
+            const boxId = 'gen_' + Date.now();
+
+            aiMsg.innerHTML = `
+                <div class="avatar">✨</div>
+                <div class="bubble" style="width: 100%;">
+                    <div style="margin-bottom: 8px;">Rozumiem! Generujem portrétovú kompozíciu z <b>${currentFiles.length || 1} obrázkov</b>...</div>
+
+                    <div class="chatgpt-gen-box" id="${boxId}">
+                        <div class="gen-top-banner">
+                            <div class="gen-status-title">
+                                <span class="spinner-pulse"></span>
+                                <span>Generating Image....</span>
+                            </div>
+                            <span class="gen-percentage">0%</span>
+                        </div>
+
+                        <div class="gen-preview-area">
+                            <div class="shimmer-placeholder">
+                                <span style="font-size: 1.8rem; animation: spin 3s linear infinite;">✨</span>
+                                <span>AI vytvára viacvrstvový portrét...</span>
+                            </div>
+                            <img class="gen-result-image" alt="AI Generated Portrait" />
+                        </div>
+
+                        <div class="gen-progress-bar-wrapper">
+                            <div class="gen-progress-bar-fill"></div>
+                        </div>
+
+                        <div class="gen-footer-actions">
+                            <span class="gen-phase-text">Pripravujem plátno a tapetu...</span>
+                            <a class="download-btn" download="ai-studio-portrait.png">
+                                📥 Stiahnuť
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(aiMsg);
+            scrollToBottom();
+
+            await executeLongAIGeneration(boxId, currentFiles, text);
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function executeLongAIGeneration(boxId, files, promptText) {
+            const box = document.getElementById(boxId);
+            const fill = box.querySelector('.gen-progress-bar-fill');
+            const percentText = box.querySelector('.gen-percentage');
+            const phaseText = box.querySelector('.gen-phase-text');
+            const spinner = box.querySelector('.spinner-pulse');
+            const statusTitle = box.querySelector('.gen-status-title span:last-child');
+            const shimmer = box.querySelector('.shimmer-placeholder');
+            const resultImg = box.querySelector('.gen-result-image');
+            const downloadBtn = box.querySelector('.download-btn');
+
+            const phases = [
+                { target: 20, text: "Analyzujem pomery strán a kompozíciu...", speed: 50 },
+                { target: 45, text: "Aplikujem zvolenú tapetu a textúru...", speed: 60 },
+                { target: 70, text: "Ukladám obrázky s dúhovým orámovaním...", speed: 75 },
+                { target: 88, text: "Pridávam dekoratívne emoji a neónové tiene...", speed: 65 },
+                { target: 97, text: "Razím AI korunku 👑 do ľavého dolného rohu...", speed: 80 },
+                { target: 100, text: "Finálny render dokončený na 100%!", speed: 30 }
+            ];
+
+            let cur = 0;
+            for (let phase of phases) {
+                phaseText.innerText = phase.text;
+                while (cur < phase.target) {
+                    cur += 1;
+                    fill.style.width = cur + '%';
+                    percentText.innerText = cur + '%';
+                    await new Promise(r => setTimeout(r, phase.speed));
+                }
+            }
+
+            const finalDataUrl = await renderCollageCanvas(files);
+
+            shimmer.style.display = 'none';
+            resultImg.src = finalDataUrl;
+            resultImg.style.display = 'block';
+            spinner.style.display = 'none';
+            statusTitle.innerText = "Image Generated ✨";
+            statusTitle.style.color = "#00ffcc";
+
+            downloadBtn.href = finalDataUrl;
+            downloadBtn.style.display = 'inline-flex';
+
+            await savePortraitToDB(finalDataUrl, promptText || "Kompozitný portrét", files.length);
+            scrollToBottom();
+        }
+
+        /* -------------------------------------------------------------
+           5. CANVAS KOMPOZÍCIA (Klasické tapety, karty bez orezu, korunka)
+        -------------------------------------------------------------- */
+        async function renderCollageCanvas(files) {
+            const canvas = document.getElementById('renderCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            const bgChoice = document.getElementById('bgSelect').value;
+            const emojiChoice = document.getElementById('emojiSelect').value;
+
+            drawChosenBackground(ctx, w, h, bgChoice);
+
+            let loadedImages = await loadAllImages(files);
+
+            if (loadedImages.length === 0) {
+                loadedImages.push(createMockCardImage("PHOTO 1", "#ff0077"));
+                loadedImages.push(createMockCardImage("PHOTO 2", "#00d4ff"));
+            }
+
+            drawRectangularCollage(ctx, w, h, loadedImages, bgChoice);
+            drawEmojis(ctx, w, h, emojiChoice);
+            drawCornerCrownBadge(ctx, w, h, bgChoice);
+
+            return canvas.toDataURL('image/png');
+        }
+
+        function drawChosenBackground(ctx, w, h, type) {
+            ctx.save();
+            if (type === 'classic-black') {
+                ctx.fillStyle = '#050507';
+                ctx.fillRect(0, 0, w, h);
+
+                let rad = ctx.createRadialGradient(w/2, h/2, 200, w/2, h/2, w*0.75);
+                rad.addColorStop(0, '#101018');
+                rad.addColorStop(1, '#020203');
+                ctx.fillStyle = rad;
+                ctx.fillRect(0, 0, w, h);
+            } else if (type === 'classic-white') {
+                ctx.fillStyle = '#f6f7fa';
+                ctx.fillRect(0, 0, w, h);
+
+                let rad = ctx.createRadialGradient(w/2, h/2, 100, w/2, h/2, w*0.8);
+                rad.addColorStop(0, '#ffffff');
+                rad.addColorStop(1, '#e3e5ed');
+                ctx.fillStyle = rad;
+                ctx.fillRect(0, 0, w, h);
+            } else if (type === 'black-white') {
+                let grad = ctx.createLinearGradient(0, 0, w, h);
+                grad.addColorStop(0, '#000000');
+                grad.addColorStop(0.48, '#0d0d12');
+                grad.addColorStop(0.52, '#eceff5');
+                grad.addColorStop(1, '#ffffff');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+            } else {
+                let grad = ctx.createLinearGradient(0, 0, w, h);
+                grad.addColorStop(0, '#1a0026');
+                grad.addColorStop(0.5, '#001a33');
+                grad.addColorStop(1, '#000000');
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+            }
+            ctx.restore();
+        }
+
+        function drawRectangularCollage(ctx, w, h, images, bgType) {
+            const count = images.length;
+            const isWhiteBg = (bgType === 'classic-white');
+
+            if (count === 1) {
+                drawSingleImageCard(ctx, images[0], 140, 140, w - 280, h - 280, isWhiteBg);
+            } else if (count === 2) {
+                const cardW = 480;
+                const cardH = 740;
+                const startY = (h - cardH) / 2;
+                drawSingleImageCard(ctx, images[0], 90, startY, cardW, cardH, isWhiteBg);
+                drawSingleImageCard(ctx, images[1], 630, startY, cardW, cardH, isWhiteBg);
+            } else if (count === 3) {
+                drawSingleImageCard(ctx, images[0], 80, 140, 520, 780, isWhiteBg);
+                drawSingleImageCard(ctx, images[1], 630, 140, 490, 370, isWhiteBg);
+                drawSingleImageCard(ctx, images[2], 630, 550, 490, 370, isWhiteBg);
+            } else if (count === 4) {
+                const gap = 30;
+                const size = 480;
+                drawSingleImageCard(ctx, images[0], 90, 90, size, size, isWhiteBg);
+                drawSingleImageCard(ctx, images[1], 90 + size + gap, 90, size, size, isWhiteBg);
+                drawSingleImageCard(ctx, images[2], 90, 90 + size + gap, size, size, isWhiteBg);
+                drawSingleImageCard(ctx, images[3], 90 + size + gap, 90 + size + gap, size, size, isWhiteBg);
+            } else {
+                const cols = 3;
+                const rows = Math.ceil(count / cols);
+                const cardW = (w - 200 - (cols - 1) * 20) / cols;
+                const cardH = (h - 240 - (rows - 1) * 20) / rows;
+
+                images.forEach((img, idx) => {
+                    const c = idx % cols;
+                    const r = Math.floor(idx / cols);
+                    const x = 100 + c * (cardW + 20);
+                    const y = 100 + r * (cardH + 20);
+                    drawSingleImageCard(ctx, img, x, y, cardW, cardH, isWhiteBg);
+                });
+            }
+        }
+
+        function drawSingleImageCard(ctx, img, x, y, boxW, boxH, isWhiteBg) {
+            ctx.save();
+            const radius = 24;
+
+            ctx.shadowColor = isWhiteBg ? 'rgba(0,0,0,0.25)' : 'rgba(255, 0, 150, 0.45)';
+            ctx.shadowBlur = 25;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 8;
+
+            ctx.beginPath();
+            roundRect(ctx, x, y, boxW, boxH, radius);
+            ctx.closePath();
+            ctx.save();
+            ctx.clip();
+
+            const imgAspect = img.width / img.height;
+            const boxAspect = boxW / boxH;
+            let renderW, renderH, offsetX, offsetY;
+
+            if (imgAspect > boxAspect) {
+                renderH = boxH;
+                renderW = boxH * imgAspect;
+                offsetX = x - (renderW - boxW) / 2;
+                offsetY = y;
+            } else {
+                renderW = boxW;
+                renderH = boxW / imgAspect;
+                offsetX = x;
+                offsetY = y - (renderH - boxH) / 2;
+            }
+
+            ctx.drawImage(img, offsetX, offsetY, renderW, renderH);
+            ctx.restore();
+
+            let rainbowGrad = ctx.createLinearGradient(x, y, x + boxW, y + boxH);
+            rainbowGrad.addColorStop(0, '#ff0055');
+            rainbowGrad.addColorStop(0.3, '#ffcc00');
+            rainbowGrad.addColorStop(0.6, '#00ffcc');
+            rainbowGrad.addColorStop(1, '#7a00ff');
+
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = rainbowGrad;
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function drawCornerCrownBadge(ctx, w, h, bgType) {
+            ctx.save();
+            const badgeX = 50;
+            const badgeY = h - 100;
+            const badgeW = 320;
+            const badgeH = 55;
+            const radius = 28;
+
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 15;
+            roundRect(ctx, badgeX, badgeY, badgeW, badgeH, radius);
+            ctx.fillStyle = (bgType === 'classic-white') ? 'rgba(255, 255, 255, 0.9)' : 'rgba(10, 10, 18, 0.9)';
+            ctx.fill();
+
+            let borderGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW, badgeY);
+            borderGrad.addColorStop(0, '#ff0055');
+            borderGrad.addColorStop(0.5, '#00ffcc');
+            borderGrad.addColorStop(1, '#ff00aa');
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = borderGrad;
+            ctx.stroke();
+
+            ctx.font = '24px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('👑', badgeX + 16, badgeY + badgeH / 2 + 1);
+
+            ctx.font = 'bold 15px -apple-system, sans-serif';
+            ctx.fillStyle = (bgType === 'classic-white') ? '#111' : '#ffffff';
+            ctx.letterSpacing = '1px';
+            ctx.fillText('AI STUDIO GENERATED', badgeX + 56, badgeY + badgeH / 2);
+
+            ctx.restore();
+        }
+
+        function drawEmojis(ctx, w, h, emojiType) {
+            const emojiSets = {
+                magic: ['✨', '🦄', '💫', '🌈', '🌟'],
+                love: ['💖', '👑', '🔥', '💎', '🌹'],
+                party: ['🥳', '🎉', '⚡', '🚀', '⭐'],
+                cool: ['😎', '🌟', '🦋', '🪐', '💫']
+            };
+            const list = emojiSets[emojiType] || emojiSets.magic;
+
+            ctx.save();
+            ctx.font = '45px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            const spots = [
+                {x: w - 90, y: 80},
+                {x: w - 80, y: h - 90},
+                {x: w / 2, y: 60},
+                {x: 70, y: 70}
+            ];
+
+            spots.forEach((pt, i) => {
+                ctx.fillText(list[i % list.length], pt.x, pt.y);
+            });
+            ctx.restore();
+        }
+
+        function loadAllImages(files) {
+            const promises = files.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            });
+            return Promise.all(promises);
+        }
+
+        function createMockCardImage(title, color) {
+            const c = document.createElement('canvas');
+            c.width = 600;
+            c.height = 800;
+            const x = c.getContext('2d');
+            let g = x.createLinearGradient(0, 0, 600, 800);
+            g.addColorStop(0, color);
+            g.addColorStop(1, '#050510');
+            x.fillStyle = g;
+            x.fillRect(0, 0, 600, 800);
+            x.fillStyle = '#fff';
+            x.font = 'bold 50px sans-serif';
+            x.textAlign = 'center';
+            x.textBaseline = 'middle';
+            x.fillText(title, 300, 400);
+            const img = new Image();
+            img.src = c.toDataURL();
+            return img;
+        }
+
+        /* -------------------------------------------------------------
+           6. GALÉRIA (INDEXEDDB) MODAL
+        -------------------------------------------------------------- */
+        async function openDBModal() {
+            const modal = document.getElementById('dbModal');
+            const container = document.getElementById('dbItemsContainer');
+            modal.classList.add('open');
+            container.innerHTML = '<div style="color:#aaa;">Načítavam záznamy...</div>';
+
+            const items = await getAllPortraitsFromDB();
+            container.innerHTML = '';
+
+            if (items.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; color: var(--text-dim); text-align:center; padding: 40px;">Žiadne uložené portréty. Vytvorte prvý cez chat!</div>';
+                return;
+            }
+
+            items.reverse().forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'db-item';
+                el.innerHTML = `
+                    <button class="delete-single-btn" onclick="deleteSingleItem(${item.id})" title="Vymazať portrét">✕</button>
+                    <img src="${item.image}" alt="Portrét" />
+                    <span style="font-size:0.7rem; color:var(--text-dim);">${item.date}</span>
+                    <a href="${item.image}" download="portrait-${item.id}.png" style="color:#00ffcc; font-size:0.75rem; text-decoration:none;">📥 Stiahnuť</a>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function closeDBModal() {
+            document.getElementById('dbModal').classList.remove('open');
+        }
+
+        async function deleteSingleItem(id) {
+            await deletePortraitFromDB(id);
+            openDBModal();
+        }
+
+        async function clearAllData() {
+            if (confirm("Naozaj chcete vymazať všetky vytvorené portréty z IndexedDB?")) {
+                await clearAllFromDB();
+                openDBModal();
+            }
+        }
+
+        /* -------------------------------------------------------------
+           7. DEVELOPER PLATFORM: API KĽÚČE & BILLING MODAL
+        -------------------------------------------------------------- */
+        function openAPIModal() {
+            document.getElementById('apiModal').classList.add('open');
+            refreshApiKeysList();
+        }
+
+        function closeAPIModal() {
+            document.getElementById('apiModal').classList.remove('open');
+        }
+
+        function generateRandomApiKey() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = 'sk_live_';
+            for (let i = 0; i < 32; i++) {
+                result += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return result;
+        }
+
+        async function handleGenerateKey() {
+            const nameInput = document.getElementById('newKeyName');
+            const rateLimit = document.getElementById('newKeyRateLimit').value;
+            const billingCap = document.getElementById('newKeyBillingCap').value;
+
+            const keyName = nameInput.value.trim() || `Produkčný kľúč #${Math.floor(100 + Math.random()*900)}`;
+            const newKey = generateRandomApiKey();
+
+            const keyObj = {
+                name: keyName,
+                key: newKey,
+                rateLimit: rateLimit,
+                billingCap: billingCap,
+                usedRequests: Math.floor(Math.random() * 45) + 5,
+                cost: (Math.random() * 3.5 + 0.25).toFixed(2),
+                created: new Date().toLocaleDateString('sk-SK')
+            };
+
+            await saveApiKeyToDB(keyObj);
+            nameInput.value = '';
+            await refreshApiKeysList();
+        }
+
+        async function refreshApiKeysList() {
+            const container = document.getElementById('apiKeysContainer');
+            const totalBillingVal = document.getElementById('totalBillingVal');
+            const totalKeysCount = document.getElementById('totalKeysCount');
+            const totalApiCalls = document.getElementById('totalApiCalls');
+
+            const keys = await getAllApiKeysFromDB();
+
+            totalKeysCount.innerText = keys.length;
+            let sumBilling = 0;
+            let sumRequests = 0;
+
+            container.innerHTML = '';
+
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div style="background:#11111a; padding: 24px; border-radius:12px; text-align:center; color: var(--text-dim); border: 1px dashed #2a2a40;">
+                        Zatiaľ nemáte vytvorený žiaden API kľúč. Zadajte názov hore a kliknite na <b>✨ Vygenerovať kľúč</b>.
+                    </div>
+                `;
+                totalBillingVal.innerText = '$0.00';
+                totalApiCalls.innerText = '0 req';
+                return;
+            }
+
+            keys.reverse().forEach(k => {
+                sumBilling += parseFloat(k.cost || 0);
+                sumRequests += parseInt(k.usedRequests || 0);
+
+                const maskedKey = k.key.substring(0, 12) + '••••••••••••••••' + k.key.substring(k.key.length - 4);
+
+                const card = document.createElement('div');
+                card.className = 'key-row-card';
+                card.innerHTML = `
+                    <div class="key-main-line">
+                        <div class="key-name-badge">
+                            <span style="color:#00ffaa;">●</span>
+                            <span>${k.name}</span>
+                        </div>
+                        <div class="key-string-box">
+                            <span id="key_text_${k.id}">${maskedKey}</span>
+                            <button class="copy-key-btn" onclick="copyKeyToClipboard('${k.key}', this)">📋 Kopírovať</button>
+                        </div>
+                        <button class="delete-key-btn" onclick="removeApiKey(${k.id})">Vymazať</button>
+                    </div>
+
+                    <div class="key-metrics-pill">
+                        <span>Vytvorený: <b>${k.created}</b></span>
+                        <span>Rate Limit: <b style="color:#fff;">${k.rateLimit}</b></span>
+                        <span>Billing Cap: <b style="color:#ffcc00;">${k.billingCap}</b></span>
+                        <span>
+                            Využitie: <b>${k.usedRequests} req</b> ($${k.cost})
+                            <span class="key-limit-progress"><span class="key-limit-fill" style="width: ${(k.usedRequests % 100)}%;"></span></span>
+                        </span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            totalBillingVal.innerText = `$${sumBilling.toFixed(2)}`;
+            totalApiCalls.innerText = `${sumRequests} req`;
+        }
+
+        async function copyKeyToClipboard(fullKey, btn) {
+            try {
+                await navigator.clipboard.writeText(fullKey);
+                const originalText = btn.innerText;
+                btn.innerText = '✓ Skopírované!';
+                btn.style.background = '#00ffaa';
+                btn.style.color = '#000';
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                    btn.style.background = '#1c1c2e';
+                    btn.style.color = '#fff';
+                }, 2000);
+            } catch (err) {
+                alert("Kľúč: " + fullKey);
+            }
+        }
+
+        async function removeApiKey(id) {
+            if (confirm("Naozaj chcete deaktivovať a vymazať tento API kľúč?")) {
+                await deleteApiKeyFromDB(id);
+                refreshApiKeysList();
+            }
+        }
+
+        async function clearAllApiKeys() {
+            if (confirm("Naozaj chcete vymazať všetky vytvorené API kľúče z databázy?")) {
+                await clearAllApiKeysFromDB();
+                refreshApiKeysList();
+            }
+        }
+
+        // Štart IndexedDB pri načítaní
+        initIndexedDB().catch(console.error);
+    </script>
+</body>
+</html>
